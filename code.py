@@ -104,4 +104,40 @@ print(get_age(None))
     
 # admin1 = Admin("shashwat", "superadmin")
 
+# POLYMORPHISM - same method name but different implementation in different classes
+class User :
+    def greet(self):
+        return "Hello, User!"
+class Admin(User):
+    def greet(self):
+        return "Hello, Admin!"
 
+u = User()
+a = Admin()
+print(u.greet())  # Output: Hello, User!
+print(a.greet())  # Output: Hello, Admin!
+
+#same method but different output
+
+
+# WEB DEV CONNEXTION -
+# This is EXACTLY how:
+# database models work
+# API responses are structured
+# business logic is organized
+class ContentPost:
+    def __init__(self, title, content):
+        self.title = title
+        self.content = content
+    
+    def preview(self):
+        return f"{self.title}: {self.content[:50]}..."  # returns first 50 characters of content
+    
+class VideoPost(ContentPost):
+    def __init__(self, title, content, video_url):
+        super().__init__(title, content)
+        self.video_url = video_url
+
+    def preview(self):
+        return f"WATCH: {self.title} at {self.video_url}"
+    
