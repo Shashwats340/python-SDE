@@ -34,7 +34,10 @@
 
 # optional[int] - values can be int OR None
 
+from gettext import install
 from typing import Optional
+
+import pip
 
 def get_age(age: Optional[int]) -> str:
     if age is None :
@@ -144,52 +147,66 @@ print(a.greet())  # Output: Hello, Admin!
 # PRACTICE SOLUTION (BANK SYSTEM )
 
 # Step1: define a base class 
-class BankCustomer:
-    def __init__(self, name, balance=0):
-        self.name = name
-        self._balance = balance  # protected 
+# class BankCustomer:
+#     def __init__(self, name, balance=0):
+#         self.name = name
+#         self._balance = balance  # protected 
 
-    # Step 2: deposit and withdraw 
-    def deposit(self, amount) -> str:
-        if amount > 0:
-            self._balance += amount 
-            return f"{amount} deposited. New balance: {self._balance}"
-        return "Invalid amount"
+#     # Step 2: deposit and withdraw 
+#     def deposit(self, amount) -> str:
+#         if amount > 0:
+#             self._balance += amount 
+#             return f"{amount} deposited. New balance: {self._balance}"
+#         return "Invalid amount"
 
-    def withdraw(self, amount):
-        if amount > self._balance:
-            return "Insufficient funds"
-        self._balance -= amount
-        return f"{amount} withdrawn. New balance: {self._balance}"
+#     def withdraw(self, amount):
+#         if amount > self._balance:
+#             return "Insufficient funds"
+#         self._balance -= amount
+#         return f"{amount} withdrawn. New balance: {self._balance}"
 
-    # Step 3: Getter (Encapsulation)
-    @property
-    def balance(self):
-        return self._balance
-
-
-# Step 4: Premium Customer (Inheritance)
-class PremiumCustomer(BankCustomer):
-    def __init__(self, name, balance=0, bonus_rate=0.1):
-        super().__init__(name, balance)
-        self.bonus_rate = bonus_rate
-
-    # override deposit (Polymorphism)
-    def deposit(self, amount):
-        bonus = amount * self.bonus_rate
-        total = amount + bonus
-        self._balance += total
-        return f"{amount} deposited with bonus {bonus}. New balance: {self._balance}"
+#     # Step 3: Getter (Encapsulation)
+#     @property
+#     def balance(self):
+#         return self._balance
 
 
-# Step 5: Testing
-user1 = BankCustomer("Aman", 1000)
-print(user1.deposit(500))
-print(user1.withdraw(300))
-print(user1.balance)
+# # Step 4: Premium Customer (Inheritance)
+# class PremiumCustomer(BankCustomer):
+#     def __init__(self, name, balance=0, bonus_rate=0.1):
+#         super().__init__(name, balance)
+#         self.bonus_rate = bonus_rate
 
-premium = PremiumCustomer("Shashwat", 1000)
-print(premium.deposit(500))  # gets bonus
-print(premium.balance)
+#     # override deposit (Polymorphism)
+#     def deposit(self, amount):
+#         bonus = amount * self.bonus_rate
+#         total = amount + bonus
+#         self._balance += total
+#         return f"{amount} deposited with bonus {bonus}. New balance: {self._balance}"
 
 
+# # Step 5: Testing
+# user1 = BankCustomer("Aman", 1000)
+# print(user1.deposit(500))
+# print(user1.withdraw(300))
+# print(user1.balance)
+
+# premium = PremiumCustomer("Shashwat", 1000)
+# print(premium.deposit(500))  # gets bonus
+# print(premium.balance)
+
+# common mistakes 
+# def deposit(amount):  # wrong
+# def deposit(self, amount): # correct - missing self parameter in method definition
+
+# In real backend systems:
+
+# BankCustomer → Model
+# deposit() → Business logic
+# PremiumCustomer → Specialized behavior
+
+# This is exactly how frameworks like FastAPI + ORMs work
+
+# FAST API 
+
+# pip install fastapi uvicorn - in terminal now working on main.py
