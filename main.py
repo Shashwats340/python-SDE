@@ -86,3 +86,12 @@ def get_customer(name: str):
 # Type validation(pydantic)
 # API routes 
 # In-memory database (dict)
+
+# This is NOT production-ready yet because:
+
+# ❌ Data resets on restart
+# ❌ No database
+# ❌ No authentication
+
+# But structure is 100% correct
+
