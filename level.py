@@ -47,6 +47,8 @@ def search_products(
 
     return result
 # search products with optional filters - category and price range
+#continued tom 
+#apis are a way for different software applications to communicate with each other. They allow one application to access the functionality or data of another application in a standardized way. In the context of web development, APIs are often used to create endpoints that can be accessed over the internet, allowing clients (like web browsers or mobile apps) to interact with a server and perform actions like retrieving data, creating new records, updating existing records, or deleting records.s
 
     
 
