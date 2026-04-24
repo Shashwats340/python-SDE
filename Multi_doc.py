@@ -105,7 +105,7 @@ def extract_fields_by_doc_type(text, doc_type):
     return data
 
 #multi doc API
-@app.post("/api/vi/scan-multiple")
+@app.post("/api/v1/scan-multiple")
 async def scan_multiple(files: List[UploadFile] = File(...)):
     try:
         all_results = []
@@ -125,11 +125,11 @@ async def scan_multiple(files: List[UploadFile] = File(...)):
                 request_id = str(uuid.uuid4())
 
                 #save original
-            file_path = os.path.join(UPLOAD_DIR, f"{request_id}.png")
-            image.save(file_path)
+                file_path = os.path.join(UPLOAD_DIR, f"{request_id}.png")
+                image.save(file_path)
 
-            processed = preprocess_image(image)
-            text = extract_text(processed)
+                processed = preprocess_image(image)
+                text = extract_text(processed)
 
 #classification
             doc_type, confidence = classify_document(text) 
