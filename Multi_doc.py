@@ -131,13 +131,13 @@ def extract_fields_by_doc_type(text, doc_type):
     return data
 
 
-# =========================
-# 🚀 MULTI-DOC API (FIXED)
-# =========================
 @app.post("/api/v1/scan-multiple")
 async def scan_multiple(
-    files: Annotated[List[UploadFile], File()]
+    file1: UploadFile = File(...),
+    file2: UploadFile = File(None),
+    file3: UploadFile = File(None)
 ):
+    files = [f for f in [file1, file2, file3] if f is not None]
     try:
         all_results = []
 
@@ -197,4 +197,6 @@ async def scan_multiple(
         return JSONResponse(
             status_code=500,
             content={"status": "error", "message": str(e)}
+        
         )
+    
