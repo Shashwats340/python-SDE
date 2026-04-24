@@ -20,6 +20,10 @@ nlp = spacy.load("en_core_web_sm")
 
 app = FastAPI()
 
+@app.get("/")
+def home():
+    return {"message": "Multi-document scanning API is working!"}
+
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -101,3 +105,62 @@ def extract_fields_by_doc_type(text, doc_type):
     return data
 
 #multi doc API
+@app.post("/api/vi/scan-multiple")
+async def scan_multiple(files: List[UploadFile] = File(...)):
+    try:
+        all_results = []
+
+        for file in files:
+            contents = await file.read()
+
+            # handle PDF or img
+            if file.filename.lower().endswith('.pdf'):
+                images = convert_from_bytes(contents)
+            else:
+                images = [Image.open(BytesIO(contents))]
+
+            doc_pages = []
+
+            for page_num, image in enumerate(images):
+                request_id = str(uuid.uuid4())
+
+                #save original
+            file_path = os.path.join(UPLOAD_DIR, f"{request_id}.png")
+            image.save(file_path)
+
+            processed = preprocess_image(image)
+            text = extract_text(processed)
+
+#classification
+            doc_type, confidence = classify_document(text) 
+            regex_data = extract_with_regex(text)
+            ner_data = extract_with_ner(text)
+            doc_specific = extract_fields_by_doc_type(text, doc_type)
+
+            final_data = {**regex_data, **ner_data, **doc_specific}
+
+            doc_pages.append({
+                "page": page_num + 1,
+                "doc_type": doc_type,
+                "classification_confidence": confidence,
+                "raw_text": text,
+                "fields": final_data
+            })
+
+            all_results.append({
+                "file_name": file.filename,
+                "pages": doc_pages
+            })
+        
+        return {
+            "status": "success",
+            "documents": all_results
+        }
+    
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+
+        )
+    
