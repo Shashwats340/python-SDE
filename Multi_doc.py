@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
 from typing import List
+from typing_extensions import Annotated
 import uuid
 import os
 import cv2
@@ -12,10 +13,10 @@ from PIL import Image
 from io import BytesIO
 from pdf2image import convert_from_bytes
 
-from OCR import extract_with_ner
-
+# 👉 Set Tesseract path (Windows)
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
+# Load NLP model
 nlp = spacy.load("en_core_web_sm")
 
 app = FastAPI()
@@ -24,37 +25,53 @@ app = FastAPI()
 def home():
     return {"message": "Multi-document scanning API is working!"}
 
+
+# Create upload folder
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+
+# =========================
+# 🔹 PREPROCESSING
+# =========================
 def preprocess_image(image: Image.Image):
     img = np.array(image)
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (5, 5), 0)                 #blur / noise removal
-    _, thresh = cv2.threshold(blur, 150, 255, cv2.THRESH_BINARY)     #it converts your image into pure B&W (binary image ) as OCR works best when text is black and bg is white
+    blur = cv2.GaussianBlur(gray, (5, 5), 0)
+    _, thresh = cv2.threshold(blur, 150, 255, cv2.THRESH_BINARY)
+
     return thresh
 
+
+# =========================
+# 🔹 OCR
+# =========================
 def extract_text(image_array):
     return pytesseract.image_to_string(image_array)
 
+
+# =========================
+# 🔹 CLASSIFICATION
+# =========================
 def classify_document(text: str):
     text = text.lower()
 
     if "passport" in text:
         return "Passport", 0.90
-    
     elif "driving" in text or "license" in text:
         return "Driving License", 0.85
-    
     elif "vehicle" in text and "registration" in text:
         return "Vehicle Card", 0.85
-    
-    elif "id" in text and "national" in text and "nationality" in text:
+    elif "id" in text and "national" in text:
         return "ID Card", 0.80
     else:
         return "Unknown", 0.0
 
+
+# =========================
+# 🔹 REGEX EXTRACTION
+# =========================
 def extract_with_regex(text):
     data = {}
 
@@ -68,9 +85,13 @@ def extract_with_regex(text):
 
     return data
 
+
+# =========================
+# 🔹 NER EXTRACTION
+# =========================
 def extract_with_ner(text):
     doc = nlp(text)
-    data ={}
+    data = {}
 
     for ent in doc.ents:
         if ent.label_ == "PERSON":
@@ -80,6 +101,10 @@ def extract_with_ner(text):
 
     return data
 
+
+# =========================
+# 🔹 DOC-SPECIFIC EXTRACTION
+# =========================
 def extract_fields_by_doc_type(text, doc_type):
     data = {}
 
@@ -96,25 +121,31 @@ def extract_fields_by_doc_type(text, doc_type):
     elif doc_type == "Vehicle Card":
         matches = re.findall(r'\b[A-Z]{2}\d{1,2}[A-Z]{1,3}\d{3,4}\b', text)
         if matches:
-            data["registration_card"] = matches[0]
+            data["registration_number"] = matches[0]
+
     elif doc_type == "ID Card":
-         match = re.search(r'\b\d{6,}\b', text)
-         if match:
+        match = re.search(r'\b\d{6,}\b', text)
+        if match:
             data["id_number"] = match.group()
 
     return data
 
-#multi doc API
+
+# =========================
+# 🚀 MULTI-DOC API (FIXED)
+# =========================
 @app.post("/api/v1/scan-multiple")
-async def scan_multiple(files: List[UploadFile] = File(...)):
+async def scan_multiple(
+    files: Annotated[List[UploadFile], File()]
+):
     try:
         all_results = []
 
         for file in files:
             contents = await file.read()
 
-            # handle PDF or img
-            if file.filename.lower().endswith('.pdf'):
+            # Handle PDF or Image
+            if file.filename.lower().endswith(".pdf"):
                 images = convert_from_bytes(contents)
             else:
                 images = [Image.open(BytesIO(contents))]
@@ -124,43 +155,46 @@ async def scan_multiple(files: List[UploadFile] = File(...)):
             for page_num, image in enumerate(images):
                 request_id = str(uuid.uuid4())
 
-                #save original
+                # Save image
                 file_path = os.path.join(UPLOAD_DIR, f"{request_id}.png")
                 image.save(file_path)
 
+                # Preprocess
                 processed = preprocess_image(image)
+
+                # OCR
                 text = extract_text(processed)
 
-#classification
-            doc_type, confidence = classify_document(text) 
-            regex_data = extract_with_regex(text)
-            ner_data = extract_with_ner(text)
-            doc_specific = extract_fields_by_doc_type(text, doc_type)
+                # Classification
+                doc_type, confidence = classify_document(text)
 
-            final_data = {**regex_data, **ner_data, **doc_specific}
+                # Extraction
+                regex_data = extract_with_regex(text)
+                ner_data = extract_with_ner(text)
+                doc_specific = extract_fields_by_doc_type(text, doc_type)
 
-            doc_pages.append({
-                "page": page_num + 1,
-                "doc_type": doc_type,
-                "classification_confidence": confidence,
-                "raw_text": text,
-                "fields": final_data
-            })
+                final_data = {**regex_data, **ner_data, **doc_specific}
+
+                doc_pages.append({
+                    "page": page_num + 1,
+                    "doc_type": doc_type,
+                    "classification_confidence": confidence,
+                    "raw_text": text,
+                    "fields": final_data
+                })
 
             all_results.append({
                 "file_name": file.filename,
                 "pages": doc_pages
             })
-        
+
         return {
             "status": "success",
             "documents": all_results
         }
-    
+
     except Exception as e:
         return JSONResponse(
             status_code=500,
             content={"status": "error", "message": str(e)}
-
         )
-    
