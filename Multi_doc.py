@@ -200,3 +200,4 @@ async def scan_multiple(
         
         )
     
+    # in the next doc we will upgrade to paddle OCR 
