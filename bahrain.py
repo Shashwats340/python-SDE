@@ -59,23 +59,32 @@ def preprocess_image(image: Image.Image):
 
 #extraction 
 def extract_text(image_array):
-    result = ocr.ocr(image_array, cls=True)
-    texts = []
-    confs = []
+    try:
+        result = ocr.ocr(image_array, cls=True)
 
-    if result and result[0]:
+        texts = []
+        confs = []
 
-        for line in result[0]:
-            text = line[1][0]
-            conf = line[1][1]
-            texts.append(text)
-            confs.append(conf)
-    
-    final_text = " ".join(texts)
-    avg_conf =(
-        sum(confs) / len(confs) if confs else 0
-    )
-    return final_text, avg_conf
+        if result and len(result) > 0 and result[0]:
+
+            for line in result[0]:
+                if len(line) >= 2:
+                    text = line[1][0]
+                    conf = line[1][1]
+
+                    texts.append(text)
+                    confs.append(conf)
+
+        final_text = " ".join(texts).strip()
+
+        avg_conf = round(
+            sum(confs) / len(confs), 2
+        ) if confs else 0
+
+        return final_text, avg_conf
+
+    except Exception as e:
+        return "", 0
 
 #classifier (bahrain)
 
@@ -189,9 +198,11 @@ def extract_fields_by_doc_type(text, doc_type):
 
 @app.post("/api/v1/scan-multiple")
 async def scan_multiple(
-    files: Annotated[List[UploadFile], File(...)]
-
+    file1: UploadFile = File(...),
+    file2: UploadFile = File(None),
+    file3: UploadFile = File(None)
 ):
+    files = [f for f in [file1, file2, file3] if f is not None]
     try:
         all_results = []
 
