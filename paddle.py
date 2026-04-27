@@ -1,3 +1,5 @@
+from email.mime import text
+
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
 from typing import List
@@ -76,4 +78,80 @@ def extract_text(image_array):
     return final_text, avg_conf
 
 #classifier (bahrain)
+
+def classify_document(text):
+    t = text.lower()
+    if "passport" in t or "جواز" in text:
+        return "Passport", 0.95
+    
+    elif (
+         "driving" in t or
+        "licence" in t or
+        "license" in t or
+        "رخصة" in text
+    ):
+        return "Driving License", 0.93
+    
+    elif (
+        "vehicle" in t or
+        "registration" in t or
+        "traffic" in t or
+        "مركبة" in text or
+        "مرور" in text or
+        "ترخيص" in text
+    ):
+        return "Vehicle Card", 0.92
+    
+    elif (
+        "identity" in t or
+        "national" in t or
+        "cpr" in t or
+        "بطاقة" in text or
+        "هوية" in text
+    ):
+        return "National ID", 0.90
+
+    else:
+        return "Unknown", 0.50
+    
+#regex extraction
+
+def extract_with_regex(text):
+
+    data = {}
+
+    date_match = re.search(
+        r'\b\d{4}[/-]\d{2}[/-]\d{2}\b',
+        text
+    )
+    if date_match:
+        data["date"] = date_match.group()
+
+    # long numbers
+    num_match = re.search(
+        r'\b\d{8,15}\b',
+        text
+    )
+    if num_match:
+        data["document_number"] = num_match.group()
+
+    return data
+
+#NER extraction
+
+def extract_with_ner(text):
+
+    data = {}
+
+    doc = nlp(text)
+
+    for ent in doc.ents:
+
+        if ent.label_ == "PERSON":
+            data["name"] = ent.text
+
+        elif ent.label_ == "GPE":
+            data["location"] = ent.text
+
+    return data
 
