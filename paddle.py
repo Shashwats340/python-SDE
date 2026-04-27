@@ -155,3 +155,107 @@ def extract_with_ner(text):
 
     return data
 
+# doc specific extraction
+
+def extract_fields_by_doc_type(text, doc_type):
+    data = {}
+
+    if doc_type == "Passport":
+        m = re.findall(r'[A-Z0-9]{6,9}', text)
+        if m:
+            data["passport_number"] = m[0]
+
+    elif doc_type == "Driving License":
+        m = re.findall(r'\b\d{6,12}\b', text)
+        if m:
+            data["license_number"] = m[0]
+
+    elif doc_type == "Vehicle Card":
+        m = re.findall(r'[A-Z0-9]{8,20}', text)
+        if m:
+            data["vehicle_number"] = m[0]
+        
+        year = re.search(r'\b20\d{2}\b', text)
+        if year:
+            data["model_year"] = year.group()
+    
+    elif doc_type == "National ID":
+        m = re.search(r'\b\d{9}\b', text)
+
+        if m:
+            data["cpr_number"] = m.group()
+
+    return data
+
+@app.post("/api/v1/scan-multiple")
+async def scan_multiple(
+    files: Annotated[List[UploadFile], File(...)]
+
+):
+    try:
+        all_results = []
+
+        for file in files:
+            contents = await file.read()
+
+            if file.filename.lower().endswith(".pdf"):
+                images = convert_from_bytes(contents)
+            else:
+                images = [
+                    Image.open(BytesIO(contents))
+                ]
+            pages = []
+
+            for page_num, image in enumerate(images):
+
+                request_id = str(uuid.uuid4())
+
+                file_path = os.path.join(
+                    UPLOAD_DIR,
+                    f"{request_id}.png"
+                )
+
+                image.save(file_path)
+
+                processed = preprocess_image(image)
+                text, ocr_conf = extract_text(processed)
+                doc_type, cls_conf = classify_document(text)
+
+                regex_data = extract_with_regex(text)
+                ner_data = extract_with_ner(text)
+                doc_data = extract_fields_by_doc_type(
+                    text,
+                    doc_type
+                )
+            #combine all extracted data into one dictionary
+                final_data = {
+                    **regex_data,
+                    **ner_data,
+                    **doc_data
+                }
+
+                pages.append({
+                    "page": page_num + 1,
+                    "doc_type": doc_type,
+                    "classification_confidence": round(cls_conf, 3),
+                    "ocr_confidence": round(ocr_conf, 3),
+                    "raw_text": text,
+                    "fields": final_data
+
+                })
+            
+            all_results.append({
+                "file_name": file.filename,
+                "pages": pages
+            })
+
+        return {
+            "status": "success",
+            "documents": all_results
+        }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
+    
